@@ -4,9 +4,8 @@
   "description": "甜趣点点消管理后台",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",

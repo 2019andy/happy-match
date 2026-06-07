@@ -1,10 +1,9 @@
 import React from 'react';
-import { Card, Row, Col, Statistic, Typography, Space, Table, Button } from 'antd';
+import { Card, Row, Col, Statistic, Typography, Space, Table } from 'antd';
 import {
   BarChartOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  DollarOutlined,
   UserOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons';
@@ -72,7 +71,6 @@ const Analytics: React.FC = () => {
             <Statistic
               title="用户留存率"
               value={65}
-              suffix="%"
               valueStyle={{ color: '#cf1322' }}
               prefix={<BarChartOutlined />}
               suffix={<span style={{ fontSize: 14, color: '#cf1322' }}><ArrowDownOutlined /> 3%</span>}
