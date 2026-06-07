@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+# 自动SSH执行脚本 - 自动输入密码
+
+set timeout 60
+set server_ip "114.132.69.85"
+set username "ubuntu"
+set password "Ubuntu123"
+
+# 获取要执行的命令
+set command [lindex $argv 0]
+
+if {$command eq ""} {
+    puts "用法: $argv0 <命令>"
+    puts "示例: $argv0 'ls -la'"
+    exit 1
+}
+
+spawn ssh -o StrictHostKeyChecking=no $username@$server_ip "$command"
+
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "Password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

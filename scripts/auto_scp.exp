@@ -1,0 +1,31 @@
+#!/usr/bin/expect -f
+# 自动SCP脚本 - 自动输入密码
+
+set timeout 120
+set server_ip "114.132.69.85"
+set username "ubuntu"
+set password "Ubuntu123"
+
+# 获取源文件和目标路径
+set source [lindex $argv 0]
+set target [lindex $argv 1]
+
+if {$source eq "" || $target eq ""} {
+    puts "用法: $argv0 <源文件> <目标路径>"
+    puts "示例: $argv0 local-file.txt ubuntu@114.132.69.85:/tmp/"
+    exit 1
+}
+
+spawn scp -o StrictHostKeyChecking=no $source $target
+
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "Password:" {
+        send "$password\r"
+        exp_continue
+    }
+    eof
+}

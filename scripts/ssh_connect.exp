@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+
+set timeout 30
+set server_ip "114.132.69.85"
+set username "ubuntu"
+set password "Ubuntu123"
+
+spawn ssh -o StrictHostKeyChecking=no $username@$server_ip
+
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "#" {
+        send "echo 'SSH连接成功！'\r"
+        send "uname -a\r"
+        send "exit\r"
+    }
+    timeout {
+        puts "连接超时"
+        exit 1
+    }
+    eof {
+        puts "连接异常结束"
+        exit 1
+    }
+}
+
+expect eof

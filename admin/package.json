@@ -13,21 +13,13 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
     "antd": "^5.9.0",
-    "@ant-design/pro-components": "^2.6.0",
-    "@ant-design/charts": "^1.4.0",
     "@ant-design/icons": "^5.2.0",
     "axios": "^1.5.0",
-    "dayjs": "^1.11.10",
-    "zustand": "^4.4.0",
-    "react-query": "^3.39.0",
-    "ahooks": "^3.7.0",
-    "lodash": "^4.17.21",
-    "xlsx": "^0.18.5"
+    "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.22",
     "@types/react-dom": "^18.2.7",
-    "@types/lodash": "^4.14.198",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
     "@vitejs/plugin-react": "^4.1.0",

@@ -1,27 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Layout, Menu, theme } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Button } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
-  AppstoreOutlined,
-  GiftOutlined,
+  TrophyOutlined,
+  CalendarOutlined,
   DollarOutlined,
+  ShoppingOutlined,
   BarChartOutlined,
-  ShoppingCartOutlined,
-  CreditCardOutlined,
-  LogoutOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 
-const { Header, Sider, Content } = AntLayout;
+const { Header, Sider, Content } = Layout;
 
 const menuItems = [
   {
     key: '/dashboard',
     icon: <DashboardOutlined />,
-    label: '数据仪表盘',
+    label: '数据概览',
   },
   {
     key: '/users',
@@ -30,12 +27,12 @@ const menuItems = [
   },
   {
     key: '/levels',
-    icon: <AppstoreOutlined />,
+    icon: <TrophyOutlined />,
     label: '关卡管理',
   },
   {
     key: '/activities',
-    icon: <GiftOutlined />,
+    icon: <CalendarOutlined />,
     label: '活动管理',
   },
   {
@@ -50,102 +47,55 @@ const menuItems = [
   },
   {
     key: '/shop',
-    icon: <ShoppingCartOutlined />,
-    label: '商城管理',
-  },
-  {
-    key: '/payments',
-    icon: <CreditCardOutlined />,
-    label: '支付管理',
+    icon: <ShoppingOutlined />,
+    label: '商店管理',
   },
 ];
 
-const Layout: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false);
+const LayoutComponent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const handleMenuClick = ({ key }: { key: string }) => {
-    navigate(key);
-  };
-
-  const userMenu = (
-    <Menu>
-      <Menu.Item key="logout" icon={<LogoutOutlined />}>
-        退出登录
-      </Menu.Item>
-    </Menu>
-  );
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
 
   return (
-    <AntLayout style={{ minHeight: '100vh' }}>
-      <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        style={{
-          background: '#001529',
-        }}
-      >
-        <div
-          style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: collapsed ? 16 : 20,
-            fontWeight: 'bold',
-          }}
-        >
-          {collapsed ? '甜趣' : '甜趣点点消'}
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider theme="dark" width={240}>
+        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 'bold' }}>
+          🍬 甜趣点点消
         </div>
         <Menu
           theme="dark"
-          mode="inline"
           selectedKeys={[location.pathname]}
+          mode="inline"
           items={menuItems}
-          onClick={handleMenuClick}
+          onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <AntLayout>
-        <Header
-          style={{
-            padding: '0 24px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: 16 }}
-          />
-          <Dropdown overlay={userMenu} placement="bottomRight">
-            <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar icon={<UserOutlined />} />
-              <span>管理员</span>
-            </div>
-          </Dropdown>
+      <Layout>
+        <Header style={{ padding: 0, background: colorBgContainer, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 24 }}>
+          <div style={{ paddingLeft: 24, fontSize: 16, fontWeight: 600 }}>
+            管理后台
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span>管理员</span>
+          </div>
         </Header>
         <Content
           style={{
-            margin: '24px',
-            padding: '24px',
-            background: '#fff',
-            borderRadius: '8px',
+            margin: '24px 16px',
+            padding: 24,
             minHeight: 280,
+            background: colorBgContainer,
+            borderRadius: borderRadiusLG,
           }}
         >
           <Outlet />
         </Content>
-      </AntLayout>
-    </AntLayout>
+      </Layout>
+    </Layout>
   );
 };
 
-export default Layout;
+export default LayoutComponent;

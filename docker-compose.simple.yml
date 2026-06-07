@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # 后端API服务
+  backend:
+    image: node:18-alpine
+    container_name: happy-match-backend
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=localhost
+      - DATABASE_PORT=3306
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=HappyMatch2024!
+      - DATABASE_NAME=happy_match
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - JWT_SECRET=happy-match-jwt-secret-key-2024-production
+      - API_BASE_URL=http://114.132.69.85
+    volumes:
+      - ./backend:/app
+    command: sh -c "npm install && npm run start:prod"
+    restart: unless-stopped
+    network_mode: host
+
+  # 前端Web服务
+  frontend:
+    image: node:18-alpine
+    container_name: happy-match-frontend
+    working_dir: /app
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_API_BASE_URL=http://114.132.69.85
+    volumes:
+      - ./src:/app
+    command: sh -c "npm install && npm run build && npx serve -s dist -l 80"
+    restart: unless-stopped
+    network_mode: host
