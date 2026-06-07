@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # 后端API服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: happy-match-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_PORT=${DATABASE_PORT:-3306}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - REDIS_HOST=${REDIS_HOST:-localhost}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - JWT_SECRET=${JWT_SECRET}
+    restart: unless-stopped
+    networks:
+      - happy-match-network
+
+  # 前端Web服务
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: happy-match-frontend
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_API_BASE_URL=${API_BASE_URL}
+    restart: unless-stopped
+    networks:
+      - happy-match-network
+
+  # 管理后台
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    container_name: happy-match-admin
+    ports:
+      - "3002:80"
+    environment:
+      - VITE_API_BASE_URL=${API_BASE_URL}
+    restart: unless-stopped
+    networks:
+      - happy-match-network
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: happy-match-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - frontend
+      - backend
+      - admin
+    restart: unless-stopped
+    networks:
+      - happy-match-network
+
+networks:
+  happy-match-network:
+    driver: bridge
