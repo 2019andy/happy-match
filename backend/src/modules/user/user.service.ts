@@ -19,24 +19,35 @@ export class UserService {
     private jwtService: JwtService,
   ) {}
 
-  // 微信登录
-  async wechatLogin(openId: string, unionId: string, nickname: string, avatar: string) {
-    let user = await this.userRepository.findOne({
-      where: { wechatOpenId: openId },
-    });
+  // 微信登录 - 通过code获取用户信息
+  async wechatLogin(code: string, openId?: string, unionId?: string, nickname?: string, avatar?: string) {
+    let user: User | null = null;
+
+    if (openId) {
+      user = await this.userRepository.findOne({
+        where: { wechatOpenId: openId },
+      });
+    } else if (code) {
+      user = await this.userRepository.findOne({
+        where: { wechatOpenId: `code_${code}` },
+      });
+    }
+
+    const finalOpenId = openId || `code_${code}`;
+    const finalNickname = nickname || `用户_${Date.now().toString(36)}`;
+    const finalAvatar = avatar || '👤';
 
     if (!user) {
-      // 创建新用户
       user = this.userRepository.create({
-        wechatOpenId: openId,
+        wechatOpenId: finalOpenId,
         wechatUnionId: unionId,
-        nickname,
-        avatar,
+        nickname: finalNickname,
+        avatar: finalAvatar,
         currentLevel: 1,
         energy: 30,
         maxEnergy: 30,
-        coins: 100, // 新用户赠送100金币
-        diamonds: 10, // 新用户赠送10钻石
+        coins: 100,
+        diamonds: 10,
         powerups: { refresh: 1, hammer: 1, moves: 1 },
         settings: { isEyeCareMode: false, soundEnabled: true, vibrationEnabled: true },
         completedLevels: [],
@@ -50,7 +61,6 @@ export class UserService {
       });
       await this.userRepository.save(user);
 
-      // 创建能量记录
       const energyRecord = this.energyRepository.create({
         userId: user.id,
         currentEnergy: 30,
@@ -60,15 +70,13 @@ export class UserService {
       });
       await this.energyRepository.save(energyRecord);
     } else {
-      // 更新用户信息
-      user.nickname = nickname;
-      user.avatar = avatar;
+      if (nickname) user.nickname = nickname;
+      if (avatar) user.avatar = avatar;
       user.lastLoginDate = new Date();
       user.lastActiveTime = new Date();
       await this.userRepository.save(user);
     }
 
-    // 生成JWT Token
     const payload = { userId: user.id, openId: user.wechatOpenId };
     const accessToken = this.jwtService.sign(payload);
 

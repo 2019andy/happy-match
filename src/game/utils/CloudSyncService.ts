@@ -1,7 +1,7 @@
 import { UserData } from '../types';
 import { StorageSystem } from './StorageSystem';
+import { authApi, userApi, gameApi } from '../../lib/api';
 
-// 微信小程序的全局对象类型定义
 declare global {
   interface Window {
     wx?: {
@@ -37,7 +37,7 @@ export interface WechatLoginResult {
 export class CloudSyncService {
   private static instance: CloudSyncService;
   private config: CloudSyncConfig = {
-    apiBaseUrl: 'https://your-api-domain.com/api',
+    apiBaseUrl: '/api/v1',
     timeout: 10000,
     retryAttempts: 3
   };
@@ -45,7 +45,7 @@ export class CloudSyncService {
   private refreshToken: string | null = null;
   private userId: string | null = null;
   private lastSyncTime: number = 0;
-  private syncInterval: number = 30000; // 30秒同步一次
+  private syncInterval: number = 30000;
   
   private constructor() {
     this.loadTokens();
@@ -60,25 +60,21 @@ export class CloudSyncService {
   }
   
   private loadTokens(): void {
-    const savedTokens = localStorage.getItem('cloud_tokens');
-    if (savedTokens) {
+    const token = localStorage.getItem('access_token');
+    const userData = localStorage.getItem('user_data');
+    
+    if (token) {
+      this.accessToken = token;
+    }
+    
+    if (userData) {
       try {
-        const tokens = JSON.parse(savedTokens);
-        this.accessToken = tokens.accessToken;
-        this.refreshToken = tokens.refreshToken;
-        this.userId = tokens.userId;
+        const data = JSON.parse(userData);
+        this.userId = data.id || null;
       } catch (error) {
-        console.error('加载云端令牌失败:', error);
+        console.error('加载用户数据失败:', error);
       }
     }
-  }
-  
-  private saveTokens(): void {
-    localStorage.setItem('cloud_tokens', JSON.stringify({
-      accessToken: this.accessToken,
-      refreshToken: this.refreshToken,
-      userId: this.userId
-    }));
   }
   
   public isLoggedIn(): boolean {
@@ -89,9 +85,11 @@ export class CloudSyncService {
     return this.userId;
   }
   
-  // 微信登录
+  public getAccessToken(): string | null {
+    return this.accessToken;
+  }
+  
   public async wechatLogin(): Promise<WechatLoginResult | null> {
-    // 在微信环境中使用 wx.login()
     const wx = (window as any).wx;
     if (wx && wx.login) {
       return new Promise((resolve) => {
@@ -115,7 +113,6 @@ export class CloudSyncService {
       });
     }
     
-    // 在H5环境中模拟扫码登录
     console.log('H5环境：模拟微信扫码登录');
     return {
       code: 'mock_code_' + Date.now(),
@@ -123,83 +120,65 @@ export class CloudSyncService {
     };
   }
   
-  // 使用code换取access_token
   public async exchangeCodeForToken(code: string): Promise<boolean> {
     try {
       console.log('交换授权码:', code);
       
-      // 模拟API调用
-      // 实际项目中：
-      // const response = await fetch(`${this.config.apiBaseUrl}/auth/wechat`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ code })
-      // });
-      // 
-      // if (!response.ok) throw new Error('Token exchange failed');
-      // 
-      // const data = await response.json();
-      // this.accessToken = data.access_token;
-      // this.refreshToken = data.refresh_token;
-      // this.userId = data.user_id;
+      const result = await authApi.wechatLogin(code);
       
-      // 模拟成功
-      this.accessToken = 'mock_access_token_' + Date.now();
-      this.refreshToken = 'mock_refresh_token_' + Date.now();
-      this.userId = 'user_' + Date.now();
+      if (result.success && result.data) {
+        this.accessToken = result.data.accessToken;
+        this.userId = result.data.user.id;
+        
+        localStorage.setItem('access_token', this.accessToken);
+        localStorage.setItem('user_data', JSON.stringify(result.data.user));
+        
+        StorageSystem.saveUserData(result.data.user);
+        console.log('登录成功，用户ID:', this.userId);
+        
+        return true;
+      }
       
-      this.saveTokens();
-      console.log('登录成功，用户ID:', this.userId);
-      
-      return true;
+      return false;
     } catch (error) {
       console.error('交换令牌失败:', error);
       return false;
     }
   }
   
-  // 刷新access_token
-  public async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) return false;
-    
+  public async guestLogin(deviceId: string): Promise<boolean> {
     try {
-      console.log('刷新access_token...');
+      const result = await authApi.guestLogin(deviceId);
       
-      // 模拟API调用
-      // 实际项目中：
-      // const response = await fetch(`${this.config.apiBaseUrl}/auth/refresh`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ refresh_token: this.refreshToken })
-      // });
-      // 
-      // if (!response.ok) throw new Error('Token refresh failed');
-      // 
-      // const data = await response.json();
-      // this.accessToken = data.access_token;
+      if (result.success && result.data) {
+        this.accessToken = result.data.accessToken;
+        this.userId = result.data.user.id;
+        
+        localStorage.setItem('access_token', this.accessToken);
+        localStorage.setItem('user_data', JSON.stringify(result.data.user));
+        
+        StorageSystem.saveUserData(result.data.user);
+        console.log('游客登录成功，用户ID:', this.userId);
+        
+        return true;
+      }
       
-      // 模拟成功
-      this.accessToken = 'new_access_token_' + Date.now();
-      this.saveTokens();
-      
-      return true;
+      return false;
     } catch (error) {
-      console.error('刷新令牌失败:', error);
-      this.logout();
+      console.error('游客登录失败:', error);
       return false;
     }
   }
   
-  // 登出
   public logout(): void {
     this.accessToken = null;
     this.refreshToken = null;
     this.userId = null;
-    localStorage.removeItem('cloud_tokens');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_data');
     console.log('已退出登录');
   }
   
-  // 上传用户数据到云端
   public async uploadUserData(userData: UserData): Promise<SyncResult> {
     if (!this.isLoggedIn()) {
       return { success: false, error: '未登录' };
@@ -208,27 +187,11 @@ export class CloudSyncService {
     try {
       console.log('上传用户数据到云端...');
       
-      // 实际项目中：
-      // const response = await fetch(`${this.config.apiBaseUrl}/user/sync`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `Bearer ${this.accessToken}`
-      //   },
-      //   body: JSON.stringify({
-      //     userId: this.userId,
-      //     userData
-      //   })
-      // });
-      // 
-      // if (!response.ok) throw new Error('Upload failed');
-      // 
-      // return { success: true, data: await response.json() };
+      for (const levelId of userData.completedLevels) {
+        await gameApi.updateProgress(levelId, userData.totalScore, 3, 0, 0);
+      }
       
-      // 模拟成功
-      await this.simulateDelay(500);
       this.lastSyncTime = Date.now();
-      
       console.log('用户数据上传成功');
       return { success: true };
     } catch (error: any) {
@@ -237,7 +200,6 @@ export class CloudSyncService {
     }
   }
   
-  // 从云端下载用户数据
   public async downloadUserData(): Promise<SyncResult> {
     if (!this.isLoggedIn()) {
       return { success: false, error: '未登录' };
@@ -246,32 +208,22 @@ export class CloudSyncService {
     try {
       console.log('从云端下载用户数据...');
       
-      // 实际项目中：
-      // const response = await fetch(`${this.config.apiBaseUrl}/user/sync/${this.userId}`, {
-      //   method: 'GET',
-      //   headers: {
-      //     'Authorization': `Bearer ${this.accessToken}`
-      //   }
-      // });
-      // 
-      // if (!response.ok) throw new Error('Download failed');
-      // 
-      // const data = await response.json();
-      // return { success: true, data: data.userData };
+      const result = await userApi.getProfile();
       
-      // 模拟成功
-      await this.simulateDelay(500);
-      const localData = StorageSystem.getUserData();
+      if (result.success && result.data) {
+        const cloudData = result.data as UserData;
+        StorageSystem.saveUserData(cloudData);
+        console.log('用户数据下载成功');
+        return { success: true, data: cloudData };
+      }
       
-      console.log('用户数据下载成功');
-      return { success: true, data: localData };
+      return { success: false, error: '获取用户信息失败' };
     } catch (error: any) {
       console.error('下载用户数据失败:', error);
       return { success: false, error: error.message };
     }
   }
   
-  // 同步数据（上传本地最新数据，下载云端数据并合并）
   public async syncData(): Promise<SyncResult> {
     if (!this.isLoggedIn()) {
       return { success: false, error: '未登录' };
@@ -280,7 +232,6 @@ export class CloudSyncService {
     try {
       console.log('开始数据同步...');
       
-      // 1. 上传本地数据
       const localData = StorageSystem.getUserData();
       const uploadResult = await this.uploadUserData(localData);
       
@@ -288,16 +239,14 @@ export class CloudSyncService {
         return uploadResult;
       }
       
-      // 2. 下载云端数据
       const downloadResult = await this.downloadUserData();
       
       if (downloadResult.success && downloadResult.data) {
-        // 3. 合并数据（云端数据优先，或使用最新的）
         const cloudData = downloadResult.data as UserData;
         const mergedData = this.mergeUserData(localData, cloudData);
         
-        // 4. 保存合并后的数据
         StorageSystem.saveUserData(mergedData);
+        localStorage.setItem('user_data', JSON.stringify(mergedData));
         
         console.log('数据同步完成');
         return { success: true, data: mergedData };
@@ -310,12 +259,9 @@ export class CloudSyncService {
     }
   }
   
-  // 合并用户数据
   private mergeUserData(local: UserData, cloud: UserData): UserData {
-    // 策略：使用时间戳最新的数据
     const merged: UserData = { ...cloud };
     
-    // 如果本地数据更新，则使用本地数据
     if (local.totalScore > cloud.totalScore) {
       merged.totalScore = local.totalScore;
     }
@@ -332,11 +278,9 @@ export class CloudSyncService {
       merged.totalStars = local.totalStars;
     }
     
-    // 合并通关记录
     const completedLevels = new Set([...cloud.completedLevels, ...local.completedLevels]);
     merged.completedLevels = Array.from(completedLevels).sort((a, b) => a - b);
     
-    // 合并成就
     local.achievements.forEach((localAch) => {
       const cloudAch = merged.achievements.find(a => a.id === localAch.id);
       if (cloudAch && localAch.unlocked && !cloudAch.unlocked) {
@@ -345,7 +289,6 @@ export class CloudSyncService {
       }
     });
     
-    // 其他字段取较大值
     merged.coins = Math.max(local.coins, cloud.coins);
     merged.diamonds = Math.max(local.diamonds, cloud.diamonds);
     merged.energy = Math.max(local.energy, cloud.energy);
@@ -354,7 +297,6 @@ export class CloudSyncService {
     return merged;
   }
   
-  // 自动同步
   private startAutoSync(): void {
     setInterval(() => {
       if (this.isLoggedIn()) {
@@ -365,17 +307,14 @@ export class CloudSyncService {
     }, this.syncInterval);
   }
   
-  // 主动同步
   public async forceSync(): Promise<SyncResult> {
     return this.syncData();
   }
   
-  // 获取最后同步时间
   public getLastSyncTime(): number {
     return this.lastSyncTime;
   }
   
-  // 模拟延迟
   private simulateDelay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

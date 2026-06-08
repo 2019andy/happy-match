@@ -1,23 +1,53 @@
-import React from 'react';
-import { Card, Row, Col, Statistic, Table, Typography, Space, Button, Tag, Progress } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Card, Row, Col, Statistic, Table, Typography, Space, Button, Tag, Progress, Modal, message } from 'antd';
 import {
   UserOutlined,
   TrophyOutlined,
   DollarOutlined,
   HeartOutlined,
   PlayCircleOutlined,
-  CheckCircleOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 const Dashboard: React.FC = () => {
-  const userData = [
-    { key: '1', name: '玩家A', level: 15, coins: 12500, diamonds: 250, lastLogin: '2024-06-07' },
-    { key: '2', name: '玩家B', level: 23, coins: 28000, diamonds: 500, lastLogin: '2024-06-06' },
-    { key: '3', name: '玩家C', level: 8, coins: 5000, diamonds: 100, lastLogin: '2024-06-08' },
-    { key: '4', name: '玩家D', level: 45, coins: 85000, diamonds: 1200, lastLogin: '2024-06-05' },
-  ];
+  const [userData, setUserData] = useState<any[]>([]);
+  const [clearConfirmVisible, setClearConfirmVisible] = useState(false);
+
+  // 从localStorage加载数据或使用默认数据
+  useEffect(() => {
+    const savedData = localStorage.getItem('adminUserList');
+    if (savedData) {
+      setUserData(JSON.parse(savedData));
+    } else {
+      const defaultData = [
+        { key: '1', name: '玩家A', level: 15, coins: 12500, diamonds: 250, lastLogin: '2024-06-07' },
+        { key: '2', name: '玩家B', level: 23, coins: 28000, diamonds: 500, lastLogin: '2024-06-06' },
+        { key: '3', name: '玩家C', level: 8, coins: 5000, diamonds: 100, lastLogin: '2024-06-08' },
+        { key: '4', name: '玩家D', level: 45, coins: 85000, diamonds: 1200, lastLogin: '2024-06-05' },
+      ];
+      setUserData(defaultData);
+      localStorage.setItem('adminUserList', JSON.stringify(defaultData));
+    }
+  }, []);
+
+  // 清除所有数据
+  const handleClearAllData = () => {
+    localStorage.clear();
+    setUserData([]);
+    message.success('所有数据已清除');
+    setClearConfirmVisible(false);
+  };
+
+  // 清除用户列表数据
+  const handleClearUserData = () => {
+    localStorage.removeItem('adminUserList');
+    localStorage.removeItem('adminLevelList');
+    localStorage.removeItem('adminAnalytics');
+    setUserData([]);
+    message.success('用户数据已清除');
+  };
 
   const columns = [
     { title: '玩家名称', dataIndex: 'name', key: 'name' },
@@ -39,14 +69,21 @@ const Dashboard: React.FC = () => {
 
   return (
     <div>
-      <Title level={3}>数据概览</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Title level={3} style={{ margin: 0 }}>数据概览</Title>
+        <Space>
+          <Button danger icon={<DeleteOutlined />} onClick={() => setClearConfirmVisible(true)}>
+            清除所有数据
+          </Button>
+        </Space>
+      </div>
       
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card>
             <Statistic
               title="总用户数"
-              value={12580}
+              value={userData.length}
               prefix={<UserOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -56,7 +93,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="日活跃用户"
-              value={3250}
+              value={Math.min(userData.length, 3250)}
               prefix={<PlayCircleOutlined />}
               valueStyle={{ color: '#3f8600' }}
             />
@@ -66,7 +103,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="总游戏时长 (小时)"
-              value={15800}
+              value={userData.length > 0 ? 15800 : 0}
               prefix={<HeartOutlined />}
               valueStyle={{ color: '#cf1322' }}
             />
@@ -76,7 +113,7 @@ const Dashboard: React.FC = () => {
           <Card>
             <Statistic
               title="广告收入 (¥)"
-              value={52300}
+              value={userData.length > 0 ? 52300 : 0}
               prefix={<DollarOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -136,6 +173,19 @@ const Dashboard: React.FC = () => {
           pagination={{ pageSize: 10 }} 
         />
       </Card>
+
+      <Modal
+        title="确认清除数据"
+        open={clearConfirmVisible}
+        onOk={handleClearAllData}
+        onCancel={() => setClearConfirmVisible(false)}
+        okText="确认清除"
+        cancelText="取消"
+        okButtonProps={{ danger: true }}
+      >
+        <p>确定要清除所有后台管理数据吗？此操作不可恢复。</p>
+        <p>包括：用户数据、关卡数据、分析数据等。</p>
+      </Modal>
     </div>
   );
 };

@@ -1,0 +1,102 @@
+#!/usr/bin/expect -f
+
+# 服务器部署脚本 - 远程执行
+# 版本: v2.0.0
+
+set timeout 300
+set server_ip "114.132.69.85"
+set server_user "root"
+set server_pass "Ubuntu123"
+
+puts "=========================================="
+puts "甜趣点点消 - 服务器部署 v2.0.0"
+puts "=========================================="
+puts ""
+
+# 连接到服务器
+puts "[1/7] 连接到服务器 $server_ip..."
+spawn ssh -o StrictHostKeyChecking=no $server_user@$server_ip
+expect {
+    "password:" {
+        send "$server_pass\r"
+    }
+    "Permission denied" {
+        puts "❌ 密码错误或权限不足"
+        exit 1
+    }
+    timeout {
+        puts "❌ 连接超时"
+        exit 1
+    }
+}
+
+# 登录成功后执行部署命令
+expect "#"
+puts "[2/7] 进入项目目录并检查状态..."
+send "cd /opt/happy-match && ls -la\r"
+expect "#"
+
+# 检查当前Git状态
+puts "[3/7] 检查Git状态并拉取最新代码..."
+send "git status\r"
+expect "#"
+
+# 拉取最新代码
+puts "[4/7] 拉取v2.0.0版本代码..."
+send "git checkout main && git pull origin main\r"
+expect "#"
+
+# 检查Git提交记录
+send "git log --oneline -5\r"
+expect "#"
+
+# 停止当前运行的服务（如果有）
+puts "[5/7] 停止当前服务..."
+send "pkill -f 'tsx api/server.ts' 2>/dev/null || echo 'No server running'\r"
+send "pkill -f 'node' 2>/dev/null || echo 'No node processes'\r"
+expect "#"
+sleep 2
+
+# 检查并创建目录结构
+puts "[6/7] 准备部署环境..."
+send "mkdir -p /opt/happy-match/dist /opt/happy-match/admin/dist\r"
+expect "#"
+
+# 启动API服务（端口3001）
+puts "[7/7] 启动API服务..."
+send "cd /opt/happy-match && nohup npx tsx api/server.ts > /tmp/api-server.log 2>&1 &\r"
+expect "#"
+sleep 3
+
+# 检查服务状态
+puts "=========================================="
+puts "检查服务状态..."
+puts "=========================================="
+send "ps aux | grep -E '(tsx|node)' | grep -v grep\r"
+expect "#"
+send "sleep 2 && curl -s http://localhost:3001/api/admin/users 2>&1 | head -20\r"
+expect "#"
+
+# 显示日志路径
+puts ""
+puts "=========================================="
+puts "部署完成！"
+puts "=========================================="
+puts "访问地址："
+puts "  - API服务: http://$server_ip:3001"
+puts "  - 管理后台: http://$server_ip:3001/admin"
+puts ""
+puts "日志文件："
+puts "  - API日志: /tmp/api-server.log"
+puts ""
+puts "查看日志命令："
+puts "  tail -f /tmp/api-server.log"
+puts ""
+puts "重启服务："
+puts "  pkill -f 'tsx api/server.ts'"
+puts "  cd /opt/happy-match && nohup npx tsx api/server.ts > /tmp/api-server.log 2>&1 &"
+puts "=========================================="
+
+# 保持连接以便查看输出
+send "exit\r"
+expect eof

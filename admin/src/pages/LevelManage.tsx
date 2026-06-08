@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Card, Table, Button, Space, Input, Select, Tag, Typography, Modal, Form, message, InputNumber } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, TrophyOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Button, Space, Input, Select, Tag, Typography, Modal, Form, message, InputNumber, Popconfirm } from 'antd';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, TrophyOutlined, ClearOutlined } from '@ant-design/icons';
+import axios from 'axios';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -8,14 +9,79 @@ const { Option } = Select;
 const LevelManage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
+  const [levelData, setLevelData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const levelData = [
-    { key: '1', id: 'L001', level: 1, difficulty: 'easy', targetScore: 1000, moves: 20, status: 'active' },
-    { key: '2', id: 'L002', level: 2, difficulty: 'easy', targetScore: 1500, moves: 20, status: 'active' },
-    { key: '3', id: 'L003', level: 3, difficulty: 'medium', targetScore: 2500, moves: 25, status: 'active' },
-    { key: '4', id: 'L004', level: 4, difficulty: 'medium', targetScore: 3500, moves: 25, status: 'active' },
-    { key: '5', id: 'L005', level: 5, difficulty: 'hard', targetScore: 5000, moves: 30, status: 'active' },
-  ];
+  // 从缓存API加载数据（数据库 → 缓存 → 页面）
+  const loadLevelsFromCache = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get('http://localhost:3001/api/admin/levels');
+      if (response.data.success) {
+        const levels = response.data.data.map((level: any) => ({
+          key: level.id.toString(),
+          id: `L${String(level.id).padStart(3, '0')}`,
+          level: level.level,
+          difficulty: level.difficulty,
+          targetScore: level.targetScore,
+          moves: level.moves,
+          status: level.status,
+        }));
+        setLevelData(levels);
+        // 同时保存到localStorage作为备份
+        localStorage.setItem('adminLevelList', JSON.stringify(levels));
+        message.success(`已从缓存加载 ${levels.length} 个关卡数据`);
+      }
+    } catch (error) {
+      console.error('从缓存加载失败:', error);
+      // 如果API失败，尝试从localStorage加载
+      const savedData = localStorage.getItem('adminLevelList');
+      if (savedData) {
+        setLevelData(JSON.parse(savedData));
+        message.warning('API加载失败，已从localStorage加载');
+      } else {
+        message.error('加载关卡数据失败');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始化时从缓存加载数据
+  useEffect(() => {
+    loadLevelsFromCache();
+  }, []);
+
+  // 保存数据到localStorage（本地备份）
+  const saveData = (data: any[]) => {
+    setLevelData(data);
+    localStorage.setItem('adminLevelList', JSON.stringify(data));
+  };
+
+  // 删除关卡
+  const handleDeleteLevel = (key: string) => {
+    const newData = levelData.filter(item => item.key !== key);
+    saveData(newData);
+    message.success('关卡删除成功');
+  };
+
+  // 清除所有关卡数据（清除缓存 + localStorage）
+  const handleClearAllLevels = async () => {
+    try {
+      // 清除后端缓存
+      await axios.post('http://localhost:3001/api/admin/cache/clear');
+      // 清除前端localStorage
+      localStorage.removeItem('adminLevelList');
+      setLevelData([]);
+      message.success('所有关卡数据已清除（缓存 + localStorage）');
+    } catch (error) {
+      console.error('清除数据失败:', error);
+      // 即使API失败，也清除localStorage
+      localStorage.removeItem('adminLevelList');
+      setLevelData([]);
+      message.warning('后端缓存清除失败，但localStorage已清除');
+    }
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
@@ -36,18 +102,52 @@ const LevelManage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: () => (
+      render: (_, record: any) => (
         <Space size="small">
           <Button type="link" icon={<EditOutlined />}>编辑</Button>
-          <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
+          <Popconfirm
+            title="确认删除"
+            description="确定要删除这个关卡吗？"
+            onConfirm={() => handleDeleteLevel(record.key)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
+  const handleModalOk = () => {
+    form.validateFields()
+      .then((values) => {
+        const newLevel = {
+          key: Date.now().toString(),
+          id: `L${String(levelData.length + 1).padStart(3, '0')}`,
+          level: values.level,
+          difficulty: values.difficulty,
+          targetScore: values.targetScore,
+          moves: values.moves,
+          status: 'active',
+        };
+        const newData = [...levelData, newLevel];
+        saveData(newData);
+        message.success('关卡添加成功');
+        setIsModalOpen(false);
+        form.resetFields();
+      })
+      .catch(() => {});
+  };
+
   return (
     <div>
-      <Title level={3}>关卡管理</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <Title level={3} style={{ margin: 0 }}>关卡管理</Title>
+        <Button danger icon={<ClearOutlined />} onClick={handleClearAllLevels}>
+          清除所有数据
+        </Button>
+      </div>
       
       <Card style={{ marginBottom: 16 }}>
         <Space>
@@ -65,13 +165,18 @@ const LevelManage: React.FC = () => {
       </Card>
 
       <Card>
-        <Table dataSource={levelData} columns={columns} pagination={{ pageSize: 10 }} />
+        <Table 
+          dataSource={levelData} 
+          columns={columns} 
+          pagination={{ pageSize: 10 }}
+          loading={loading}
+        />
       </Card>
 
       <Modal
         title="添加关卡"
         open={isModalOpen}
-        onOk={() => { message.success('关卡添加成功'); setIsModalOpen(false); }}
+        onOk={handleModalOk}
         onCancel={() => setIsModalOpen(false)}
       >
         <Form form={form} layout="vertical">

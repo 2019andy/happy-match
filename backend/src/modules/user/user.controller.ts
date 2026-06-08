@@ -29,7 +29,7 @@ export class UserController {
   @ApiOperation({ summary: '微信登录' })
   @ApiResponse({ status: 200, description: '登录成功' })
   async wechatLogin(@Body() dto: WechatLoginDto) {
-    return this.userService.wechatLogin(dto.openId, dto.unionId, dto.nickname, dto.avatar);
+    return this.userService.wechatLogin(dto.code, dto.openId, dto.unionId, dto.nickname, dto.avatar);
   }
 
   @Post('guest-login')

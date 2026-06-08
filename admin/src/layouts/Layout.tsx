@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Menu, theme } from 'antd';
+import { Layout, Menu, theme, Button, Popconfirm, message } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -9,8 +9,9 @@ import {
   DollarOutlined,
   ShoppingOutlined,
   BarChartOutlined,
-  SettingOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
+import axios from 'axios';
 
 const { Header, Sider, Content } = Layout;
 
@@ -59,6 +60,19 @@ const LayoutComponent: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  const handleClearAllData = async () => {
+    try {
+      await axios.post('http://localhost:3001/api/auth/clear-all-data');
+      message.success('后端数据已清除！');
+      localStorage.clear();
+      message.success('前端数据已清除！');
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      console.error('清除数据失败:', error);
+      message.error('清除数据失败，请重试');
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider theme="dark" width={240}>
@@ -79,6 +93,18 @@ const LayoutComponent: React.FC = () => {
             管理后台
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Popconfirm
+              title="清除所有数据"
+              description="确定要清除所有前端和后端数据吗？此操作不可恢复！"
+              onConfirm={handleClearAllData}
+              okText="确定"
+              cancelText="取消"
+              okType="danger"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                清除所有数据
+              </Button>
+            </Popconfirm>
             <span>管理员</span>
           </div>
         </Header>
