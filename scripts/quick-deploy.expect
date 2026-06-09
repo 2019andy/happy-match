@@ -1,0 +1,73 @@
+#!/usr/bin/expect -f
+set timeout 600
+set SERVER_IP "114.132.69.85"
+set SERVER_USER "root"
+set SERVER_PASS "Ubuntu123"
+
+puts "======================================"
+puts "  自动部署 v2.0.0"
+puts "======================================"
+puts ""
+puts "Step 1: 连接服务器 $SERVER_IP..."
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SERVER_USER@$SERVER_IP
+expect {
+    "password:" { send "$SERVER_PASS\r" }
+    timeout { puts "TIMEOUT"; exit 1 }
+}
+expect -re {#|>|\\\$}
+puts "OK - 已连接"
+
+puts ""
+puts "Step 2: 拉取最新代码..."
+send "cd /opt/happy-match && git checkout main && git pull origin main\r"
+expect -re {#|>|\\\$}
+
+send "git log --oneline -2\r"
+expect -re {#|>|\\\$}
+puts "OK - 代码已更新"
+
+puts ""
+puts "Step 3: 停止旧服务..."
+send "pkill -f 'tsx api/server.ts' 2>/dev/null; pkill -f 'node' 2>/dev/null; sleep 2\r"
+expect -re {#|>|\\\$}
+puts "OK - 已停止"
+
+puts ""
+puts "Step 4: 安装依赖..."
+send "cd /opt/happy-match && npm install 2>&1 | tail -3\r"
+expect -re {#|>|\\\$}
+puts "OK - 依赖完成"
+
+puts ""
+puts "Step 5: 启动新服务..."
+send "mkdir -p /var/log/happy-match\r"
+expect -re {#|>|\\\$}
+send "cd /opt/happy-match && nohup npx tsx api/server.ts > /var/log/happy-match/api-server.log 2>&1 &\r"
+expect -re {#|>|\\\$}
+send "sleep 12\r"
+expect -re {#|>|\\\$}
+puts "OK - 服务已启动"
+
+puts ""
+puts "Step 6: 验证服务..."
+send "echo '---进程---' && ps aux | grep -E '(tsx|node)' | grep -v grep\r"
+expect -re {#|>|\\\$}
+send "echo '---端口---' && (netstat -tlnp 2>/dev/null || ss -tlnp) | grep 3001\r"
+expect -re {#|>|\\\$}
+send "echo '---API测试---' && curl -s http://localhost:3001/api/admin/users 2>&1 | head -30\r"
+expect -re {#|>|\\\$}
+send "echo '---日志---' && tail -20 /var/log/happy-match/api-server.log\r"
+expect -re {#|>|\\\$}
+
+puts ""
+puts "======================================"
+puts "  部署完成!"
+puts "======================================"
+puts ""
+puts "访问: http://114.132.69.85:3001/api/admin/users"
+puts "日志: /var/log/happy-match/api-server.log"
+puts ""
+
+send "exit\r"
+expect eof

@@ -62,7 +62,7 @@ const LayoutComponent: React.FC = () => {
 
   const handleClearAllData = async () => {
     try {
-      await axios.post('http://localhost:3001/api/auth/clear-all-data');
+      await axios.post(getFullUrl(API_CONFIG.ENDPOINTS.AUTH_CLEAR_ALL));
       message.success('后端数据已清除！');
       localStorage.clear();
       message.success('前端数据已清除！');

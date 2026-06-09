@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Select, Tag, Typography, Modal, Form, message, InputNumber, Popconfirm } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, TrophyOutlined, ClearOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { API_CONFIG, getFullUrl } from '../config/apiConfig';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -16,7 +17,7 @@ const LevelManage: React.FC = () => {
   const loadLevelsFromCache = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:3001/api/admin/levels');
+      const response = await axios.get(getFullUrl(API_CONFIG.ENDPOINTS.LEVELS));
       if (response.data.success) {
         const levels = response.data.data.map((level: any) => ({
           key: level.id.toString(),
@@ -69,7 +70,7 @@ const LevelManage: React.FC = () => {
   const handleClearAllLevels = async () => {
     try {
       // 清除后端缓存
-      await axios.post('http://localhost:3001/api/admin/cache/clear');
+      await axios.post(getFullUrl(API_CONFIG.ENDPOINTS.CACHE_CLEAR));
       // 清除前端localStorage
       localStorage.removeItem('adminLevelList');
       setLevelData([]);

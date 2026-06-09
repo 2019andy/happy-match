@@ -1,0 +1,9 @@
+Script started on Tue Jun  9 01:27:50 2026
+Command: '"'"''"'"''"'"' -E '"'script nd set timeout 600
+y_v2.exp'"'"')}")
+PYEOF
+echo "---脚本检查---" && head -15 /tmp/deploy_v2.exp && echo "..." && echo "" && echo "现在执行部署..."'
+script: '"'"''"'"''"'"': No such file or directory
+
+Command exit status: 1
+Script done on Tue Jun  9 01:27:50 2026

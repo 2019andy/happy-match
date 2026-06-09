@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Input, Select, Tag, Typography, Modal, Form, message, Popconfirm, InputNumber } from 'antd';
 import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { API_CONFIG, getFullUrl } from '../config/apiConfig';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -40,7 +41,7 @@ const UserManage: React.FC = () => {
   const loadUsersFromCache = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('http://localhost:3001/api/admin/users');
+      const response = await axios.get(getFullUrl(API_CONFIG.ENDPOINTS.USERS));
       if (response.data.success) {
         const users: UserRecord[] = response.data.data.map((user: any) => ({
           key: user.id,
@@ -198,7 +199,7 @@ const UserManage: React.FC = () => {
     
     try {
       const values = await editForm.validateFields();
-      const response = await axios.put(`http://localhost:3001/api/admin/users/${currentUser.id}`, {
+      const response = await axios.put(getFullUrl(API_CONFIG.ENDPOINTS.USER_BY_ID(currentUser.id)), {
         nickname: values.username,
         currentLevel: values.level,
         coins: values.coins,

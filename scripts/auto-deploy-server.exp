@@ -1,0 +1,189 @@
+#!/usr/bin/expect -f
+
+# 甜趣点点消 v2.0.0 自动化部署脚本
+# 功能：自动SSH连接、拉取代码、部署服务、验证状态
+# 使用：expect scripts/auto-deploy-server.exp
+# 服务器: 114.132.69.85
+
+set timeout 600
+set SERVER_IP "114.132.69.85
+set SERVER_USER "root"
+set SERVER_PASS "Ubuntu123"
+
+puts "======================================================================"
+puts "  甜趣点点消 v2.0.0 自动部署工具"
+puts "======================================================================"
+puts ""
+puts "  服务器: $SERVER_USER@$SERVER_IP"
+puts "  开始时间: [clock format [clock seconds] -  "
+puts ""
+puts "======================================================================"
+
+# ============================================
+# 阶段1: 连接服务器
+# ============================================
+puts ""
+puts "[阶段 1/6: 连接到服务器..."
+puts "----------------------------------------"
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $SERVER_USER@$SERVER_IP
+expect {
+    "password:" {
+        send "$SERVER_PASS\r"
+    }
+    "Permission denied" {
+        puts "❌ 密码错误或权限不足"
+        exit 1
+    }
+    timeout {
+        puts "❌ 连接超时"
+        exit 1
+    }
+    eof {
+        puts "❌ 无法连接到服务器"
+        exit 1
+    }
+}
+
+# 等待Shell提示符
+expect -re {#|>|\\\$
+puts "✅ SSH连接成功"
+
+# ============================================
+# 阶段2: 检查项目目录和Git状态检查
+# ============================================
+puts ""
+puts "[阶段 2/6]: 检查项目目录和Git状态..."
+puts "----------------------------------------"
+
+# 进入目录并检查
+send "cd /opt/happy-match 2>&1 && echo 'DIR_OK' || echo 'DIR_NOT_FOUND'\r"
+expect {
+    "DIR_OK" {
+        puts "✅ 项目目录存在"
+    }
+    "DIR_NOT_FOUND" {
+        puts "⚠️  项目目录不存在，尝试创建..."
+        send "mkdir -p /opt/happy-match && cd /opt/happy-match && git clone https://github.com/2019andy/happy-match.git .\r"
+        expect -re {#|>|\\\$}
+    }
+}
+}
+
+# 检查Git状态
+send "git status --short | head -20\r"
+expect -re {#|>|\\\$}
+puts "✅ Git状态检查完成"
+
+# ============================================
+# 阶段3: 拉取最新代码
+# ============================================
+puts ""
+puts "[阶段 3/6]: 从GitHub拉取v2.0.0版本代码..."
+puts "----------------------------------------"
+
+send "git checkout main 2>&1 | tail -5\r"
+expect -re {#|>|\\\$}
+
+send "git pull origin main 2>&1 | tail -10\r"
+expect -re {#|>|\\\$}
+
+# 显示最新提交
+send "git log --oneline -3\r"
+expect -re {#|>|\\\$}
+puts "✅ 代码拉取完成"
+
+# ============================================
+# 阶段4: 停止旧服务
+# ============================================
+puts ""
+puts "[阶段 4/6]: 停止旧服务..."
+puts "----------------------------------------"
+
+# 检查并停止现有进程
+send "ps aux | grep -E '(tsx|node)' | grep -v grep | wc -l\r"
+expect -re {#|>|\\\$}
+
+send "pkill -f 'tsx api/server.ts' 2>/dev/null; pkill -f 'node' 2>/dev/null; sleep 2\r"
+expect -re {#|>|\\\$}
+
+# 确认已停止
+send "ps aux | grep -E '(tsx|node)' | grep -v grep | wc -l\r"
+expect -re {#|>|\\\$}
+puts "✅ 旧服务已停止"
+
+# ============================================
+# 阶段5: 安装依赖并启动新服务
+# ============================================
+puts ""
+puts "[阶段 5/6]: 安装依赖并启动API服务 (v2.0.0..."
+puts "----------------------------------------"
+
+# 创建日志目录
+send "mkdir -p /var/log/happy-match\r"
+expect -re {#|>|\\\$}
+
+# 安装依赖（如果package.json有变化）
+send "cd /opt/happy-match && npm install 2>&1 | tail -5\r"
+expect -re {#|>|\\\$}
+puts "  - 依赖安装完成"
+
+# 启动服务
+send "cd /opt/happy-match && nohup npx tsx api/server.ts > /var/log/happy-match/api-server.log 2>&1 &\r"
+expect -re {#|>|\\\$}
+
+puts "  - 服务启动中..."
+
+# 等待服务完全启动（等待10秒
+send "sleep 10\r"
+expect -re {#|>|\\\$}
+
+# ============================================
+# 阶段6: 验证部署
+# ============================================
+puts ""
+puts "[阶段 6/6]: 验证部署状态..."
+puts "----------------------------------------"
+
+# 检查进程
+puts ""
+send "echo '=== 进程检查 ===' && ps aux | grep -E '(tsx|node)' | grep -v grep\r"
+expect -re {#|>|\\\$}
+
+# 检查端口
+send "echo '=== 端口检查 ===' && (netstat -tlnp 2>/dev/null || ss -tlnp) | grep 3001 || echo 'PORT_NOT_FOUND'\r"
+expect -re {#|>|\\\$}
+
+# 测试API
+send "echo '=== API测试 ===' && sleep 3 && curl -s --connect-timeout 10 http://localhost:3001/api/admin/users 2>&1 | head -50\r"
+expect -re {#|>|\\\$}
+
+# 显示日志摘要
+send "echo '=== 日志摘要 ===' && tail -30 /var/log/happy-match/api-server.log\r"
+expect -re {#|>|\\\$}
+
+# ============================================
+# 部署完成
+# ============================================
+puts ""
+puts "======================================================================"
+puts "  ✅ v2.0.0 自动部署完成!"
+puts "======================================================================"
+puts ""
+puts "  📌 服务信息:"
+puts "     - API地址: http://114.132.69.85:3001"
+puts "     - 管理后台: http://114.132.69.85:3001/admin"
+puts "     - 日志文件: /var/log/happy-match/api-server.log"
+puts ""
+puts "  📌 验证命令:"
+puts "     - 查看日志: ssh root@114.132.69.85 'tail -f /var/log/happy-match/api-server.log"
+puts "     - 测试API: curl http://114.132.69.85:3001/api/admin/users"
+puts ""
+puts "======================================================================"
+puts ""
+puts "  结束时间: [clock format [clock seconds]]"
+puts ""
+
+# 退出
+send "exit\r"
+expect eof
