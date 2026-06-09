@@ -89,7 +89,7 @@ const UserManage: React.FC = () => {
   // 逻辑删除用户（通过API）
   const handleDeleteUser = async (userId: string) => {
     try {
-      const response = await axios.delete(`http://localhost:3001/api/admin/users/${userId}`);
+      const response = await axios.delete(getFullUrl(API_CONFIG.ENDPOINTS.USER_BY_ID(userId)));
       if (response.data.success) {
         // 从本地列表中移除该用户
         const newData = userData.filter(item => item.id !== userId);
@@ -112,7 +112,7 @@ const UserManage: React.FC = () => {
   // 清除所有用户数据
   const handleClearAllUsers = async () => {
     try {
-      await axios.post('http://localhost:3001/api/admin/cache/clear');
+      await axios.post(getFullUrl(API_CONFIG.ENDPOINTS.CACHE_CLEAR));
       localStorage.removeItem('adminUserList');
       setUserData([]);
       message.success('所有用户数据已清除');
@@ -133,7 +133,7 @@ const UserManage: React.FC = () => {
   const handleAddOk = async () => {
     try {
       const values = await addForm.validateFields();
-      const response = await axios.post('http://localhost:3001/api/admin/users', {
+      const response = await axios.post(getFullUrl(API_CONFIG.ENDPOINTS.USERS), {
         nickname: values.username,
         coins: values.coins || 100,
         diamonds: values.diamonds || 10,
